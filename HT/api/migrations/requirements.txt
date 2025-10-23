@@ -1,0 +1,15 @@
+Flask
+flask-cors
+flask-socketio
+eventlet
+psycopg2-binary
+SQLAlchemy
+flask_sqlalchemy
+requests
+python-dotenv
+Werkzeug
+PyJWT
+# api/requirements.txt - Añadir
+aiohttp
+asyncio
+python-dateutil

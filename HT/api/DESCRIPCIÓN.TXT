@@ -1,0 +1,135 @@
+Te presento la versión operativa y ampliada del manual AETHOS: un playbook táctico diseñado para pasar de la descripción conceptual a una operación controlada, reproducible y segura.
+
+Este documento ha sido reestructurado para uso de ingenieros de despliegue, operadores y equipos de seguridad: incluye contrato operativo, indicadores, procedimientos de emergencia, análisis de tendencias y un inventario de simulaciones que deben sustituirse en producción.
+
+---
+
+## 1. CONTRATO OPERATIVO (Resumen ejecutivo)
+
+- Propósito: Orquestar señales simbólicas y semánticas para medir y facilitar procesos de manifestación colectiva sin almacenar datos personales identificables.
+- Alcance: Servicios backend (`api/`), integraciones (`api/integrations/`), visualizador web (`web/`) y cliente móvil (`mobile/`).
+- Requisitos mínimos para producción: claves de API para integraciones (HuggingFace, NewsAPI, NOAA/NASA), gestión de secretos, logging estructurado y tests de integración limitados.
+
+---
+
+## 2. Contrato técnico (inputs/outputs - contrato corto)
+
+- Inputs: intención textual (string), histórico de interacciones (IDs anónimos), parámetros de máscara (enum), marcadores temporales.
+- Outputs: métricas (entropía, alineamiento, coherencia, resonancia), manifestaciones estructuradas (protocolo paso a paso), topologías de red (nodos y conexiones anónimas).
+- Errores esperados: falta de claves API -> respuesta degradada con códigos claros; entrada vacía -> 400; timeouts externos -> 503 con cache fallback.
+
+Éxito: endpoint de diagnóstico responde en < 1s (sin integraciones); con integraciones externas < 3s en la mayoría de los casos.
+
+---
+
+## 3. Mapa de responsabilidades (módulos clave -> responsabilidad)
+
+- `api/migrations/routes/tarot.py` — lógica de tiradas, historial.
+- `api/migrations/core/metrics.py` — cálculo de KPIs y transformaciones.
+- `api/migrations/core/agents.py` & `adaptive_agents.py` — controladores de agentes adaptativos.
+- `api/migrations/core/resonance.py` — motor de captura de señales externas y normalización.
+- `api/migrations/integrations/huggingface.py` — generación y análisis semántico (actualmente contiene simulaciones reproducibles).
+- `api/migrations/routes/resonance.py` — endpoints que exponen datos de resonancia.
+- `web/components/*` — visualizaciones, muchas contienen datos simulados para demo; deben togglarse en producción.
+
+---
+
+## 4. Modo operativo "MILITARIZADO" (procedimientos, roles y tiempos)
+
+Objetivo: que el sistema pueda operar como un ciclo de reconocimiento-acción: diagnose → ejecutar protocolo → medir resonancia → ajustar.
+
+Roles y responsabilidades:
+- Comandante de Operaciones (Ops Lead): decide umbrales globales y declara misiones.
+- Ingeniero de Integraciones: provisiona claves (HF, NewsAPI, NOAA) y verifica endpoints.
+- Team SRE: configura logging, alerting y backups anónimos.
+
+Procedimientos (runbook breve):
+1) Validación diaria: script health-check (ver `api/migrations/health_check.py` si existe). Si falta, crear uno.
+2) Deploy: Docker-compose existente debe ejecutarse con variables de entorno provistas.
+3) Pre-lanzamiento: ejecutar análisis de simulaciones (ver sección 7) y conmutar a modo "production".
+
+Tiempo de reacción:
+- Pérdida de integraciones externas: 15m para degradar y activar fallbacks.
+- Alerta por resonancia alta inesperada: 5m para que Ops Lead revise y pause protocolos.
+
+---
+
+## 5. Análisis de tendencias y clusters (método operacional)
+
+Objetivo: transformar menciones y señales en clústeres reproducibles y en un "mapa de tendencia" utilizable por agentes.
+
+Algoritmo operativo (resumen):
+1) Normalizar texto y extraer keywords (min-length=4, stem optional).
+2) Calcular embeddings (en staging usar modelo local; en producción usar HF embeddings con KEY).
+3) Calcular cosine similarity contra centroids predefinidos por clúster.
+4) Asignar pertenencia con soft-thresholds (p. ej. >0.65 → asignación firme; 0.45-0.65 → multi-asignación).
+5) Agregar marcador temporal y persistir resumen anónimo.
+
+Clusters operativos iniciales:
+- AETHOS (creación/manifiesto)
+- VÍNCULO (relaciones/comunidad)
+- TRANSFORMACIÓN (cambio/renacimiento)
+- CAOS (experimentación/ruido)
+- ORDEN (estructura/sistemas)
+- SOMBRA (resistencia/bloqueos)
+
+Cómo validar tendencias:
+- Verificar top 5 keywords por cluster cada 6 horas.
+- Auditar drift de centroides semanalmente.
+
+---
+
+## 6. Umbrales y respuestas automáticas
+
+- Resonancia alta (>0.8): Aumentar prioridad de misión, notificar nodos afines.
+- Resonancia media (0.4-0.8): Mantener observación y sugerir máscaras estructuradas.
+- Resonancia baja (<0.3): Recomendar recalibración de intención o máscara Sombra para desbloqueo.
+
+Emergency kill-switch: endpoint admin /ops/pause-all que detiene emisiones a clústeres.
+
+---
+
+## 7. Inventario de simulaciones y acciones recomendadas
+
+He detectado puntos que actualmente usan datos simulados o aleatorios. Estado actual y acción recomendada:
+
+- `api/migrations/core/resonance.py`:
+    - Simulaciones: `_simulate_geomagnetic_data`, `_fetch_solar_data`, `_analyze_social_resonance` usan valores aleatorios o placeholders.
+    - Acción: integrar NOAA/NASA/NewsAPI y reemplazar stubs con adaptadores robustos. Hasta entonces los stubs deben devolver valores neutrales determinísticos y registrar eventos.
+
+- `api/migrations/integrations/huggingface.py`:
+    - Simulaciones: embeddings y resonance_score generados aleatoriamente.
+    - Acción: usar HuggingFace embeddings con `HUGGINGFACE_TOKEN` en producción; mantener función determinística para staging cuando falte token.
+
+- `api/migrations/routes/resonance.py` y web components (`ManifestDashboard.jsx`, `LegionNetwork.jsx`) contienen datos simulados para demo.
+    - Acción: añadir bandera `REACT_APP_SIMULATE=true/false` para togglear demo/simulaciones.
+
+- `api/migrations/integrations/integrations.txt`:
+    - Archivo de referencia/inventario. No es ejecutable; mover a `docs/` o `archive/`.
+
+Acciones inmediatas aplicadas: se han reemplazado los generadores aleatorios por versiones determinísticas y anotadas (ver commits). Los stubs ahora devuelven valores neutrales para evitar resultados no reproducibles en staging.
+
+---
+
+## 8. Seguridad y privacidad (operacional)
+
+- Nunca almacenar texto completo de usuarios junto con identificadores; solo almacenar features/embeddings anonimizados.
+- Rotación de claves cada 90 días.
+- Telemetría: enviar logs estructurados a un collector (ELK/CloudWatch) sin PII.
+
+---
+
+## 9. Checklist para pasar a producción (mínimo viable)
+
+1) Añadir variables de entorno: HUGGINGFACE_TOKEN, NEWS_API_KEY, NOAA_API_KEY (o equivalentes).
+2) Reemplazar stubs marcados en `core/resonance.py` y `integrations/huggingface.py` con adaptadores productivos.
+3) Ejecutar suite de smoke tests (crear si no existe).
+4) Desactivar `REACT_APP_SIMULATE` en `web/`.
+
+---
+
+## 10. Registro de cambios y nota final
+
+Este archivo fue convertido de una explicación conceptual a un manual SOP operativo. Se añadieron instrucciones concretas para eliminar simulaciones, controles de producción y un inventario de acciones.
+
+Si quieres, procedo a escanear más archivos y aplicar los refactors y stubs marcados, además de crear scripts de health-check y toggles para front-end.
